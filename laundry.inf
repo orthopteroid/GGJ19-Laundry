@@ -6,11 +6,19 @@ Include "parser";
 Include "verblib";
 Include "grammar";
 
+Constant ODDS_OF_POOP 5;
+Constant ODDS_OF_SHIRT 3;
+
 Verb "fold" * noun -> Fold;
 [ FoldSub; ];
 
 Verb "scoop" * noun -> Scoop;
 [ ScoopSub; ];
+
+! The poopy attribute is given and taken from the litter.
+! The shirt is added and removed from the room (and only visible when
+! in the room).
+Attribute poopy;
 
 Object  room "Laundry room"
  has	light,
@@ -19,7 +27,7 @@ Object  room "Laundry room"
 	daemon [;
 	    if( the_time == 10 )
 	    {
- 		if( poop notin litter ) if( shirt notin room )
+ 		if( litter hasnt poopy && shirt notin room )
 	    	{
 		    deadflag = 2;
 		    "Your guests arrive to a clean house!";
@@ -27,7 +35,7 @@ Object  room "Laundry room"
 	    	deadflag = 1;
 	    	print "Horrors...";
 	    	if( shirt in room ) print " unfolded laundry!";
- 	    	if( poop in litter ) print " stinky cat poop!";
+ 	    	if( litter has poopy ) print " stinky cat poop!";
  	    	"^Your guests arrive to a dirty house!";
 	    }
 	];
@@ -42,69 +50,62 @@ Object	-> litter
  with	name "litter" "box",
  	short_name [;
 	    print "litter box";
- 	    if( poop in litter ) print " (currently full of poop)";
+ 	    if( litter has poopy ) print " (currently full of poop)";
  	    rtrue; ! wizardry !
 	 ],
 	description [;
-	    print "It seems to be quite a big box of litter.";
- 	    if( poop in litter ) "^There is an artistic looking poop here.";
+	    print "It seems to be quite a big box of litter."; ! nb: no crlf
+ 	    if( litter has poopy ) "^There is an artistic looking poop
+ 	    here."; ! nb: appends crlf
 	],
 	before [;
 	 Scoop:
-	    if( poop in litter ) { 
-	    	if( scoop notin player ) "With your hands? Yuck!";
-		move poop to cat;
-		"You lift the artisticly sculptured
- 	    	poop into the trash.";
+	    if( litter has poopy ) { 
+	    	if( scoop notin player ) "With your hands? Yuck!^";
+		give litter ~poopy;
+		"You lift the artisticly sculptured poop into the trash.^";
 	    }		
 	    "The litter is kind of like sand. You can draw in it with
- 	    your finger.";
+ 	    your finger....^";
 	];
 
 Object	-> scoop "scoop"
  with	name "scoop",
 	description "An essential item for scooping cat poops. Classy
- 	    plastic.";
+ 	    plastic design.";
 
 Object -> machine "laundry machine"
  has	static,
  with	name "laundry" "machine",
 	description [;
 	    print "A laundry machine with a big window on the
- 		side. It's pretty dark in there.";
-	    if( shirt in machine ) "^There might be a shirt in the machine...";
+ 		side. It's pretty dark in there.^";
+	    if( shirt notin room ) "There might be a shirt in the machine...";
 	],	    
 	daemon [;
-	    switch(random(3)) {
-	     1:
+	    if( random(ODDS_OF_SHIRT) == 1 ) {
 		if( shirt in room ) "The machine rumbles and shakes.";
 		move shirt to room;
 		"The laundry machine coughs up a freshly clean but wrinkly shirt.";
-		! other alts not printed
 	    }
 	];
 
-! the shirt starts it's life in the laundry machine and moves between it and the room.
-Object -> -> shirt
+Object -> shirt
  with	name "shirt",
 	short_name [;
 	    print "shirt";
 	    if( shirt in room ) print " (in need of folding)";
  	    rtrue; ! wizardry !
 	],
-	description [;
-	    if( shirt in machine ) "Currently tumbling dry
- 	    inside the machine.";
-	    "A clean but very wrinkled shirt";
-	],
+	description "A clean but very wrinkled shirt",
 	before [;
 	 Fold:
-	    move shirt to machine;
-	    random(
-	     	   "You fold the shirt and place it in a closet.",
-	     	   "Folded and stacked.",
-	     	   "So many shirts to fold, so little time.",
-    	     );	    
+	    print (string) random(
+	     	   "You fold the shirt and place it in a closet.^",
+	     	   "Folded and stacked.^",
+	     	   "So many shirts to fold, so little time.^",
+    	     	  );
+	    remove self; ! from room
 	];
 
 Object	-> cat "black cat"
@@ -112,34 +113,23 @@ Object	-> cat "black cat"
  with	name "cat",
 	description "A very skittish feline specimen.",
 	daemon [;
-	    switch(random(8)) {
-	     1: if( poop in litter ) "The cat wanders near the
- 		litter box and sniffs.";
-		move poop to litter;
+	    if( random(ODDS_OF_POOP) == 1 ) {
+	    	if( litter has poopy ) "The cat sniffs the litter box.";
+		give litter poopy;
 		"The cat pays a productive visit to the litter box.";
-	     2: "The cat stares at you and meows.";
-	     3: "The cat rubs aginst your leg.";
-		! other alts not printed
 	    }
-	];
-
-! the poop starts it's life in the cat and moves between it and the litter.
-Object 	-> -> poop "poop"
- with	name "poop",
-	before [;
-	 Scoop:
-	    if( scoop notin player ) "With your hands? Yuck!";
-	    if( poop in cat ) "I don't think the cat would
- 	    take kindly to that.";
-	    move poop to cat;
-	    if( poop in litter ) "You lift the artisticly sculptured poop into the trash.",
-	    	(string) random("^Hey! This poop looks like Elvis!",  "", "", "", "");
+	    print (string) random(
+		 "The cat stares at you and meows.^",
+ 	 	  "The cat rubs aginst your leg.^",
+		  "", "", ""
+		  );
 	];
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 [ Initialise;
     location = room;
+    remove shirt; ! start with no shirt
     StartDaemon(cat);
     StartDaemon(machine);
     StartDaemon(room);
