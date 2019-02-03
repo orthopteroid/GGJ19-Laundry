@@ -1,0 +1,150 @@
+Constant Story "The Laundry Room";
+Constant Headline "^Fold the laundry and clean the cat box before
+    guests arrive in 10 moves!^by john howard, gamejam2019^";
+
+Include "parser";
+Include "verblib";
+Include "grammar";
+
+Verb "fold" * noun -> Fold;
+[ FoldSub; ];
+
+Verb "scoop" * noun -> Scoop;
+[ ScoopSub; ];
+
+Object  room "Laundry room"
+ has	light,
+ with	description "Your typical suburban laundry room
+	    lit by a flickering fluorescent light.",
+	daemon [;
+	    if( the_time == 10 )
+	    {
+ 		if( poop notin litter ) if( shirt notin room )
+	    	{
+		    deadflag = 2;
+		    "Your guests arrive to a clean house!";
+	    	}
+	    	deadflag = 1;
+	    	print "Horrors...";
+	    	if( shirt in room ) print " unfolded laundry!";
+ 	    	if( poop in litter ) print " stinky cat poop!";
+ 	    	"^Your guests arrive to a dirty house!";
+	    }
+	];
+
+Object	-> can "trash can"
+ has	static,
+ with	name "trash" "can",
+	description "A small can with a loose fitting lid. Probably just for cat poop.";
+
+Object	-> litter
+ has	static,
+ with	name "litter" "box",
+ 	short_name [;
+	    print "litter box";
+ 	    if( poop in litter ) print " (currently full of poop)";
+ 	    rtrue; ! wizardry !
+	 ],
+	description [;
+	    print "It seems to be quite a big box of litter.";
+ 	    if( poop in litter ) "^There is an artistic looking poop here.";
+	],
+	before [;
+	 Scoop:
+	    if( poop in litter ) { 
+	    	if( scoop notin player ) "With your hands? Yuck!";
+		move poop to cat;
+		"You lift the artisticly sculptured
+ 	    	poop into the trash.";
+	    }		
+	    "The litter is kind of like sand. You can draw in it with
+ 	    your finger.";
+	];
+
+Object	-> scoop "scoop"
+ with	name "scoop",
+	description "An essential item for scooping cat poops. Classy
+ 	    plastic.";
+
+Object -> machine "laundry machine"
+ has	static,
+ with	name "laundry" "machine",
+	description [;
+	    print "A laundry machine with a big window on the
+ 		side. It's pretty dark in there.";
+	    if( shirt in machine ) "^There might be a shirt in the machine...";
+	],	    
+	daemon [;
+	    switch(random(3)) {
+	     1:
+		if( shirt in room ) "The machine rumbles and shakes.";
+		move shirt to room;
+		"The laundry machine coughs up a freshly clean but wrinkly shirt.";
+		! other alts not printed
+	    }
+	];
+
+! the shirt starts it's life in the laundry machine and moves between it and the room.
+Object -> -> shirt
+ with	name "shirt",
+	short_name [;
+	    print "shirt";
+	    if( shirt in room ) print " (in need of folding)";
+ 	    rtrue; ! wizardry !
+	],
+	description [;
+	    if( shirt in machine ) "Currently tumbling dry
+ 	    inside the machine.";
+	    "A clean but very wrinkled shirt";
+	],
+	before [;
+	 Fold:
+	    move shirt to machine;
+	    random(
+	     	   "You fold the shirt and place it in a closet.",
+	     	   "Folded and stacked.",
+	     	   "So many shirts to fold, so little time.",
+    	     );	    
+	];
+
+Object	-> cat "black cat"
+ has 	static,
+ with	name "cat",
+	description "A very skittish feline specimen.",
+	daemon [;
+	    switch(random(8)) {
+	     1: if( poop in litter ) "The cat wanders near the
+ 		litter box and sniffs.";
+		move poop to litter;
+		"The cat pays a productive visit to the litter box.";
+	     2: "The cat stares at you and meows.";
+	     3: "The cat rubs aginst your leg.";
+		! other alts not printed
+	    }
+	];
+
+! the poop starts it's life in the cat and moves between it and the litter.
+Object 	-> -> poop "poop"
+ with	name "poop",
+	before [;
+	 Scoop:
+	    if( scoop notin player ) "With your hands? Yuck!";
+	    if( poop in cat ) "I don't think the cat would
+ 	    take kindly to that.";
+	    move poop to cat;
+	    if( poop in litter ) "You lift the artisticly sculptured poop into the trash.",
+	    	(string) random("^Hey! This poop looks like Elvis!",  "", "", "", "");
+	];
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+[ Initialise;
+    location = room;
+    StartDaemon(cat);
+    StartDaemon(machine);
+    StartDaemon(room);
+    
+    settime(0, 1);    
+    
+    print "^^^^^This house is a mess... What will your guests think when they arrive?^^";
+];
